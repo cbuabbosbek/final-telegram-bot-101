@@ -38,6 +38,7 @@ bot.on("message", async (msg) => {
   const chatId = msg.chat.id;
   const firstname = msg.chat.first_name;
   const text = msg.text;
+  let user = await User.findOne({ chatId });
 
   const subscription = await checkIfUserSubscribed(chatId);
 
@@ -87,31 +88,37 @@ bot.on("message", async (msg) => {
     return onInfo(msg);
   }
 
-  let user = await User.findOne({ chatId });
-
   // action
   if (user.action == "awaiting_name") {
-    user = await User.findOneAndUpdate(
-      { chatId: chatId },
-      { name: text, action: "awaiting_phone" }
-    );
+    try {
+      user = await User.findOneAndUpdate(
+        { chatId: chatId },
+        { name: text, action: "awaiting_phone" }
+      );
 
-    return bot.sendMessage(chatId, `Telefon raqamingizni kiriting:`);
+      return bot.sendMessage(chatId, `Telefon raqamingizni kiriting:`);
+    } catch {
+      console.log("error: awaiting name");
+    }
   }
 
   if (user.action == "awaiting_phone") {
-    user = await User.findOneAndUpdate(
-      { chatId: chatId },
-      { phone: text, action: "finish_registration" }
-    );
+    try {
+      user = await User.findOneAndUpdate(
+        { chatId: chatId },
+        { phone: text, action: "finish_registration" }
+      );
 
-    bot.sendMessage(chatId, `Tabriklaymiz! 🎉\nSiz ro'yhatdan o'tdingiz! ✅`);
-    bot.sendMessage(
-      875072364,
-      `------------------------------\n🔔 Yangi Xabar:\n\n🔘FIO: ${user.name}\n🔘Telefon: ${text}\n------------------------------`
-    );
+      bot.sendMessage(chatId, `Tabriklaymiz! 🎉\nSiz ro'yhatdan o'tdingiz! ✅`);
+      bot.sendMessage(
+        875072364,
+        `------------------------------\n🔔 Yangi Xabar:\n\n🔘FIO: ${user.name}\n🔘Telefon: ${text}\n------------------------------`
+      );
 
-    return;
+      return;
+    } catch {
+      console.log("error: awaiting phone");
+    }
   }
 
   return onError(msg);
