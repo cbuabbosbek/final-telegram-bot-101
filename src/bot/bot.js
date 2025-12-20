@@ -3,18 +3,19 @@ import { config } from "dotenv";
 config();
 
 import onStart from "./handlers/onStart.js";
+import onCourses from "./handlers/onCourses.js";
+import onRegister from "./handlers/onRegister.js";
+import onInfo from "./handlers/onInfo.js";
+import onError from "./handlers/onError.js";
+import User from "../models/User.js";
 
 export const bot = new TelegramBot(process.env.BOT_TOKEN, { polling: true });
 const CHANNEL_ID = "@academy_100x_uz";
 
 const checkIfUserSubscribed = async (chatId) => {
   try {
-    console.log("TRY++++++++++++");
-
     const chatMember = await bot.getChatMember(CHANNEL_ID, chatId);
-    console.log("---------------------");
     // console.log(chatMember);
-    console.log(chatMember.status);
 
     if (chatMember.status == "left" || chatMember.status == "kicked") {
       return false;
@@ -28,8 +29,6 @@ const checkIfUserSubscribed = async (chatId) => {
     // member - a'zo
     // left - tark etgan yoki qo'shilmagan
     // kicked - chiqarib yuborilgan
-
-    console.log("---------------------");
   } catch {
     console.log("CATCH--------------");
   }
@@ -42,7 +41,7 @@ bot.on("message", async (msg) => {
 
   const subscription = await checkIfUserSubscribed(chatId);
 
-  console.log(subscription);
+  // console.log(subscription);
 
   // false -> kanalda yoq
   // true -> kanalda bor
@@ -76,8 +75,46 @@ bot.on("message", async (msg) => {
     return onStart(msg);
   }
 
-  bot.sendMessage(chatId, `Assalomu aleykum, ${firstname}`);
-  bot.sendMessage(chatId, `text: ${text}`);
+  if (text == "📚 Kurslar") {
+    return onCourses(msg);
+  }
+
+  if (text == "✍️ Ro‘yxatdan o‘tish") {
+    return onRegister(msg);
+  }
+
+  if (text == "ℹ️ Markaz haqida") {
+    return onInfo(msg);
+  }
+
+  let user = await User.findOne({ chatId });
+
+  // action
+  if (user.action == "awaiting_name") {
+    user = await User.findOneAndUpdate(
+      { chatId: chatId },
+      { name: text, action: "awaiting_phone" }
+    );
+
+    return bot.sendMessage(chatId, `Telefon raqamingizni kiriting:`);
+  }
+
+  if (user.action == "awaiting_phone") {
+    user = await User.findOneAndUpdate(
+      { chatId: chatId },
+      { phone: text, action: "finish_registration" }
+    );
+
+    bot.sendMessage(chatId, `Tabriklaymiz! 🎉\nSiz ro'yhatdan o'tdingiz! ✅`);
+    bot.sendMessage(
+      875072364,
+      `------------------------------\n🔔 Yangi Xabar:\n\n🔘FIO: ${user.name}\n🔘Telefon: ${text}\n------------------------------`
+    );
+
+    return;
+  }
+
+  return onError(msg);
 });
 
 bot.on("callback_query", async (query) => {
